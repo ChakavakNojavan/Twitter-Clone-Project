@@ -2,10 +2,12 @@ import React, { useState, useEffect, useContext } from "react";
 import styled from "styled-components";
 import { CurrentUserContext } from "./CurrentUserContext";
 import { FiHeart, FiMessageCircle, FiRepeat, FiShare } from "react-icons/fi";
+import { FaBomb } from "react-icons/fa";
 import { FadeLoader } from "react-spinners";
 import { COLORS } from "./constants";
 import moment from "moment";
 import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 const Wrapper = styled.div`
   margin-left: 300px;
   font-family: sans-serif;
@@ -89,6 +91,9 @@ const Icon3 = styled(FiHeart)`
 const Icon4 = styled(FiShare)`
   padding-left: 120px;
 `;
+const Icon5 = styled(FaBomb)`
+  font-size: 100px;
+`;
 const Spinner = styled(FadeLoader)`
   font-size: 50px;
   margin-left: 300px;
@@ -106,7 +111,7 @@ const CharacterCounter = styled.div`
   right: 95px;
   padding: 0 10px 10px 0;
 `;
-const StyledLink = styled(Link)`
+const StyledLink = styled.div`
   color: inherit;
   text-decoration: none;
   display: flex;
@@ -130,81 +135,109 @@ const TimeStamp = styled.p`
   font-size: 15px;
   padding-left: 5px;
 `;
+const ErrorMessage = styled.div`
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+font-weight: bold;
+text-align: center;
+}
+`;
 const HomeFeed = () => {
   const [data, setData] = useState(null);
   const [newTweetText, setNewTweetText] = useState("");
   const { currentUser } = useContext(CurrentUserContext);
-  const [inputError, setInputError] = useState(false);
-
+  const [remainingChars, setRemainingChars] = useState(280);
+  const [error, setError] = useState(null);
+  const [isInputBoxVisible, setIsInputBoxVisible] = useState(true);
+  const [likes, setLikes] = useState({});
+  const navigate = useNavigate();
   useEffect(() => {
     if (currentUser) {
       fetch("/api/me/home-feed")
         .then((response) => response.json())
         .then((data) => setData(data))
-        .catch((error) => console.error(error));
+        .catch((error) => {
+          setError(
+            <ErrorMessage>
+              <Icon5 />
+              <h1>An unknown error has occurred.</h1>
+              <h3>Please try refreshing the page.</h3>
+            </ErrorMessage>
+          );
+          setIsInputBoxVisible(false);
+        });
     }
   }, [currentUser]);
 
   const handleNewTweetChange = (event) => {
     const value = event.target.value;
     setNewTweetText(value);
-
-    if (value.length > 280 * 0.8) {
-      setInputError(true);
-    } else {
-      setInputError(false);
-    }
+    setRemainingChars(280 - value.length);
   };
-
-  const inputMaxLength = 280;
 
   const handleNewTweetSubmit = (event) => {
     event.preventDefault();
     const requestOptions = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newTweetText }),
+      body: JSON.stringify({ status: newTweetText, likes: 0 }),
     };
     fetch("/api/tweet", requestOptions)
       .then((response) => response.json())
-      .then((data) => {
-        setData((prevData) => ({
-          tweetIds: [data.tweet.id, ...prevData.tweetIds],
-          tweetsById: { [data.tweet.id]: data.tweet, ...prevData.tweetsById },
-        }));
+      .then(() => {
+        fetch("/api/me/home-feed")
+          .then((response) => response.json())
+          .then((data) => setData(data))
+          .catch((error) => {
+            setError(
+              <ErrorMessage>
+                <Icon5 />
+                <h1>An unknown error has occurred.</h1>
+                <h3>Please try refreshing the page.</h3>
+              </ErrorMessage>
+            );
+            setIsInputBoxVisible(false);
+          });
         setNewTweetText("");
       })
-      .catch((error) => console.error(error));
+      .catch((error) => {
+        setError(
+          <ErrorMessage>
+            <Icon5 />
+            <h1>An unknown error has occurred.</h1>
+            <h3>Please try refreshing the page.</h3>
+          </ErrorMessage>
+        );
+        setIsInputBoxVisible(false);
+      });
   };
 
   return (
     <Wrapper>
       <h2>Home</h2>
-
-      <form onSubmit={handleNewTweetSubmit}>
-        <InputBox>
-          <Input
-            type="text"
-            placeholder="What's happening?"
-            value={newTweetText}
-            onChange={handleNewTweetChange}
-            maxLength={inputMaxLength}
-            style={{ borderColor: inputError ? "red" : "" }}
-          />
-          <CharacterCounter
-            remainingChars={inputMaxLength - newTweetText.length}
-          >
-            {inputMaxLength - newTweetText.length}
-          </CharacterCounter>
-          {inputError && <Warning>Maximum character limit exceeded!</Warning>}
-          <Button
-            type="submit"
-            disabled={inputError || newTweetText.length === 0}
-          >
-            Meow
-          </Button>
-        </InputBox>
-      </form>
+      {error && <div>{error}</div>}
+      {isInputBoxVisible && (
+        <form onSubmit={handleNewTweetSubmit}>
+          <InputBox>
+            <Input
+              placeholder="What's happening?"
+              value={newTweetText}
+              onChange={handleNewTweetChange}
+            />
+            <CharacterCounter remainingChars={remainingChars}>
+              {remainingChars}
+            </CharacterCounter>
+            <Button
+              type="submit"
+              disabled={!newTweetText || remainingChars < 0}
+            >
+              Meow
+            </Button>
+          </InputBox>
+        </form>
+      )}
 
       {!data ? (
         <Spinner color={"gray"} loading={true} size={20} />
@@ -214,19 +247,31 @@ const HomeFeed = () => {
             const tweet = data.tweetsById[tweetId];
             const timestamp = tweet.timestamp;
             const formattedDate = moment(timestamp).format("MMM DD");
+            const handleTweetClick = (event) => {
+              event.preventDefault();
+              navigate(`/tweet/${tweet.id}`);
+            };
+            const handleAuthorClick = (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              navigate(`/${tweet.author.handle}`);
+            };
+            const handleLikeClick = (event, id) => {
+              event.stopPropagation();
+              setLikes({ ...likes, [id]: !likes[id] });
+            };
+
             return (
-              <StyledLink key={tweet.id} to={`/tweet/${tweet.id}`}>
+              <StyledLink key={tweet.id} onClick={handleTweetClick}>
                 <Tweet>
-                  <Author>
+                  <Author onClick={handleAuthorClick}>
                     <ProfileImg
                       src={tweet.author.avatarSrc}
                       alt="profile picture"
                     />
                     <AuthorInfo>
-                      <StyledLink to={`/${tweet.author.handle}`}>
-                        <DisplayName>{tweet.author.displayName}</DisplayName>
-                        <Handle>@{tweet.author.handle} </Handle>
-                      </StyledLink>
+                      <DisplayName>{tweet.author.displayName}</DisplayName>
+                      <Handle>@{tweet.author.handle} </Handle>
                       <TimeStamp>- {formattedDate}</TimeStamp>
                     </AuthorInfo>
                   </Author>
@@ -238,7 +283,13 @@ const HomeFeed = () => {
                   <br />
                   <Icon1 />
                   <Icon2 />
-                  <Icon3 />
+                  <Icon3
+                    onClick={(event) => handleLikeClick(event, tweet.id)}
+                    style={{ fill: likes[tweet.id] ? "red" : "none" }}
+                  />
+
+                  <span>{likes[tweet.id] ? 1 : ""}</span>
+
                   <Icon4 />
                 </Tweet>
               </StyledLink>
