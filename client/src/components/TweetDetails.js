@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import styled from "styled-components";
 import { FiHeart, FiMessageCircle, FiRepeat, FiShare } from "react-icons/fi";
-import { FadeLoader } from "react-spinners";
 import moment from "moment";
 import { Link } from "react-router-dom";
 
@@ -55,10 +54,6 @@ const Icon3 = styled(FiHeart)`
 const Icon4 = styled(FiShare)`
   padding-left: 120px;
 `;
-const Spinner = styled(FadeLoader)`
-  margin: 0 auto;
-  font-size: 50px;
-`;
 const StyledLink = styled(Link)`
   color: inherit;
   text-decoration: none;
@@ -84,6 +79,7 @@ const TimeStamp = styled.p`
 function TweetDetails() {
   const [tweet, setTweet] = useState(null);
   const { tweetId } = useParams();
+  const [likes, setLikes] = useState({});
   useEffect(() => {
     async function fetchData() {
       try {
@@ -97,6 +93,10 @@ function TweetDetails() {
 
     fetchData();
   }, [tweetId]);
+  const handleLikeClick = (event, id) => {
+    event.stopPropagation();
+    setLikes({ ...likes, [id]: !likes[id] });
+  };
 
   if (!tweet) {
     return <div>Loading tweet details...</div>;
@@ -124,7 +124,12 @@ function TweetDetails() {
         <TimeStamp>{formattedDate} . Critter web app</TimeStamp>
         <Icon1 />
         <Icon2 />
-        <Icon3 />
+        <Icon3
+          onClick={(event) => handleLikeClick(event, tweet.id)}
+          style={{ fill: likes[tweet.id] ? "red" : "none" }}
+        />
+
+        <span>{likes[tweet.id] ? 1 : ""}</span>
         <Icon4 />
       </Tweet>
     </Wrapper>

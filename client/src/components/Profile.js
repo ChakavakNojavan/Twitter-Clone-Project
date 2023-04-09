@@ -2,6 +2,10 @@ import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { useParams } from "react-router-dom";
 import { COLORS } from "./constants";
+import { FiHeart, FiMessageCircle, FiRepeat, FiShare } from "react-icons/fi";
+import { FadeLoader } from "react-spinners";
+import moment from "moment";
+import { useNavigate } from "react-router-dom";
 const Wrapper = styled.div`
   position: fixed;
   top: 0;
@@ -62,10 +66,83 @@ const Stat = styled.div`
   }
 `;
 
+const ProfileImg2 = styled.img`
+  length: 50px;
+  width: 50px;
+  border-radius: 50%;
+  padding-right: 10px;
+`;
+const StyledTweet = styled.div`
+  border: 1px solid white;
+  width: 600px;
+  border-radius: 10px;
+  background-color: white;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  margin-bottom: 20px;
+  cursor: pointer;
+`;
+const TweetImg = styled.img`
+  length: 80%;
+  width: 80%;
+  border-radius: 10px;
+  margin-left: 10px;
+`;
+
+const Author = styled.div`
+  display: flex;
+  align-items: center;
+`;
+const AuthorInfo = styled.div`
+  display: flex;
+  align-items: center;
+`;
+const Icon1 = styled(FiMessageCircle)`
+  padding-left: 20px;
+`;
+const Icon2 = styled(FiRepeat)`
+  padding-left: 120px;
+`;
+const Icon3 = styled(FiHeart)`
+  padding-left: 120px;
+`;
+const Icon4 = styled(FiShare)`
+  padding-left: 120px;
+`;
+const Spinner = styled(FadeLoader)`
+  font-size: 50px;
+  margin-left: 300px;
+`;
+const StyledLink = styled.div`
+  color: inherit;
+  text-decoration: none;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+`;
+const DisplayName = styled.h4`
+  margin: 0 5px 0 0;
+  top: 20px;
+`;
+const Handle = styled.p`
+  color: gray;
+  font-size: 15px;
+`;
+const Status = styled.p`
+  margin-left: 20px;
+  font-size: 16px;
+`;
+const TimeStamp = styled.p`
+  color: gray;
+  font-size: 15px;
+  padding-left: 5px;
+`;
 const Profile = () => {
   const [profileData, setProfileData] = useState(null);
-  const [feedData, setFeedData] = useState(null);
   const { profileId } = useParams();
+  const [tweets, setTweets] = useState([]);
+  const [likes, setLikes] = useState({});
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -87,7 +164,7 @@ const Profile = () => {
 
         const tweets = Object.values(data.tweetsById);
 
-        setFeedData(tweets);
+        setTweets(tweets);
       } catch (error) {
         console.error(error);
       }
@@ -111,7 +188,6 @@ const Profile = () => {
     isFollowingYou,
     avatarSrc,
     bannerSrc,
-    joined,
   } = profileData;
 
   return (
@@ -148,19 +224,64 @@ const Profile = () => {
         </Stat>
         {isFollowingYou && <p>You're followed by this user</p>}
       </UserStats>
-      {feedData &&
-        feedData.map((tweet) => (
-          <div key={tweet.id}>
-            <p>
-              {tweet.author.displayName} (@{tweet.author.handle})
-            </p>
-            <p>{tweet.status}</p>
-            {tweet.media &&
-              tweet.media.map((media) => (
-                <img key={media.url} src={media.url} alt="media" />
-              ))}
-          </div>
-        ))}
+
+      {!tweets ? (
+        <Spinner color={"gray"} loading={true} size={20} />
+      ) : (
+        <div>
+          {tweets.map((tweet) => {
+            const timestamp = tweet.timestamp;
+            const formattedDate = moment(timestamp).format("MMM DD");
+            const handleTweetClick = (event) => {
+              event.preventDefault();
+              navigate(`/tweet/${tweet.id}`);
+            };
+            const handleAuthorClick = (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              navigate(`/${tweet.author.handle}`);
+            };
+            const handleLikeClick = (event, id) => {
+              event.stopPropagation();
+              setLikes({ ...likes, [id]: !likes[id] });
+            };
+
+            return (
+              <StyledLink key={tweet.id} onClick={handleTweetClick}>
+                <StyledTweet>
+                  <Author onClick={handleAuthorClick}>
+                    <ProfileImg2
+                      src={tweet.author.avatarSrc}
+                      alt="profile picture"
+                    />
+                    <AuthorInfo>
+                      <DisplayName>{tweet.author.displayName}</DisplayName>
+                      <Handle>@{tweet.author.handle} </Handle>
+                      <TimeStamp>- {formattedDate}</TimeStamp>
+                    </AuthorInfo>
+                  </Author>
+                  <Status>{tweet.status}</Status>
+                  {tweet.media.length > 0 && (
+                    <TweetImg src={tweet.media[0].url} alt="tweet media" />
+                  )}
+                  <br />
+                  <br />
+                  <Icon1 />
+                  <Icon2 />
+                  <Icon3
+                    onClick={(event) => handleLikeClick(event, tweet.id)}
+                    style={{ fill: likes[tweet.id] ? "red" : "none" }}
+                  />
+
+                  <span>{likes[tweet.id] ? 1 : ""}</span>
+
+                  <Icon4 />
+                </StyledTweet>
+              </StyledLink>
+            );
+          })}
+        </div>
+      )}
     </Wrapper>
   );
 };

@@ -6,7 +6,6 @@ import { FaBomb } from "react-icons/fa";
 import { FadeLoader } from "react-spinners";
 import { COLORS } from "./constants";
 import moment from "moment";
-import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 const Wrapper = styled.div`
   margin-left: 300px;
@@ -41,7 +40,7 @@ const TweetImg = styled.img`
   border-radius: 10px;
   margin-left: 10px;
 `;
-const Input = styled.input`
+const Input = styled.textarea`
   width: 100%;
   height: 120px;
   border: 1px solid ${(props) => (props.inputError ? "red" : "#ccc")};
@@ -53,13 +52,6 @@ const Input = styled.input`
     outline: none;
     border-color: #0077ff;
   }
-`;
-
-const Warning = styled.p`
-  color: red;
-  font-size: 14px;
-  margin-top: 5px;
-  margin-bottom: 0;
 `;
 const Button = styled.button`
   background-color: ${COLORS.primary};
@@ -153,6 +145,7 @@ const HomeFeed = () => {
   const [isInputBoxVisible, setIsInputBoxVisible] = useState(true);
   const [likes, setLikes] = useState({});
   const navigate = useNavigate();
+
   useEffect(() => {
     if (currentUser) {
       fetch("/api/me/home-feed")
@@ -225,6 +218,8 @@ const HomeFeed = () => {
               placeholder="What's happening?"
               value={newTweetText}
               onChange={handleNewTweetChange}
+              rows={4}
+              cols={50}
             />
             <CharacterCounter remainingChars={remainingChars}>
               {remainingChars}
