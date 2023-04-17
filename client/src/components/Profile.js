@@ -6,6 +6,7 @@ import { FiHeart, FiMessageCircle, FiRepeat, FiShare } from "react-icons/fi";
 import { FadeLoader } from "react-spinners";
 import moment from "moment";
 import { useNavigate } from "react-router-dom";
+import { FaBomb } from "react-icons/fa";
 const Wrapper = styled.div`
   position: fixed;
   top: 0;
@@ -137,8 +138,22 @@ const TimeStamp = styled.p`
   font-size: 15px;
   padding-left: 5px;
 `;
+const ErrorMessage = styled.div`
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+font-weight: bold;
+text-align: center;
+}
+`;
+const Icon5 = styled(FaBomb)`
+  font-size: 100px;
+`;
 const Profile = () => {
   const [profileData, setProfileData] = useState(null);
+  const [error, setError] = useState(null);
+  const [data, setData] = useState(null);
   const { profileId } = useParams();
   const [tweets, setTweets] = useState([]);
   const [likes, setLikes] = useState({});
@@ -156,25 +171,21 @@ const Profile = () => {
     };
     fetchProfileData();
   }, [profileId]);
+
   useEffect(() => {
-    const fetchFeedData = async () => {
-      try {
-        let response = await fetch(`/api/${profileId}/feed`);
-        const data = await response.json();
-
-        const tweets = Object.values(data.tweetsById);
-
-        setTweets(tweets);
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    fetchFeedData();
+    fetch(`/api/${profileId}/feed`)
+      .then((response) => response.json())
+      .then((data) => setData(data))
+      .catch((error) => {
+        setError(
+          <ErrorMessage>
+            <Icon5 />
+            <h1>An unknown error has occurred.</h1>
+            <h3>Please try refreshing the page.</h3>
+          </ErrorMessage>
+        );
+      });
   }, [profileId]);
-
-  if (!profileData) {
-    return <h2>Loading...</h2>;
-  }
 
   const {
     displayName,
@@ -188,7 +199,11 @@ const Profile = () => {
     isFollowingYou,
     avatarSrc,
     bannerSrc,
-  } = profileData;
+  } = profileData || {};
+
+  if (!profileData) {
+    return <Spinner color={"gray"} loading={true} size={20} />;
+  }
 
   return (
     <Wrapper>
@@ -225,11 +240,12 @@ const Profile = () => {
         {isFollowingYou && <p>You're followed by this user</p>}
       </UserStats>
 
-      {!tweets ? (
+      {!data ? (
         <Spinner color={"gray"} loading={true} size={20} />
       ) : (
         <div>
-          {tweets.map((tweet) => {
+          {data.tweetIds.map((tweetId) => {
+            const tweet = data.tweetsById[tweetId];
             const timestamp = tweet.timestamp;
             const formattedDate = moment(timestamp).format("MMM DD");
             const handleTweetClick = (event) => {
